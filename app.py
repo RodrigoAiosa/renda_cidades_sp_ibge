@@ -594,7 +594,7 @@ with st.sidebar:
     
     # Campo de busca com autocomplete funcional
     texto_busca = st.text_input(
-        "Digite o nome da cidade:",
+        "Digite o nome do Município:",
         placeholder="Ex: São Paulo, Campinas, Adamantina...",
         help="Digite parte do nome da cidade para filtrar"
     )
@@ -609,7 +609,7 @@ with st.sidebar:
     # Selectbox com os municípios filtrados
     if municipios_filtrados:
         municipio_selecionado = st.selectbox(
-            "Escolha uma cidade:",
+            "Escolha um Município:",
             options=municipios_filtrados,
             index=0,
             help="Selecione um município paulista para visualizar os dados de renda"
