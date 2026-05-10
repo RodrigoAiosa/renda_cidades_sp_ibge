@@ -197,20 +197,44 @@ class IBGEAPIClient:
         
         df_pib['pib_total_reais'] = df_pib['pib_total_mil'] * 1000
         
+        # CORREÇÃO: Melhor merge dos dados de população
         if df_pop is not None and not df_pop.empty:
+            # Mostra quantos municípios têm população
+            print(f"📊 População encontrada para {len(df_pop)} municípios")
+            
+            # Faz o merge e mantém todos os municípios
             df_pib = df_pib.merge(
                 df_pop[['codigo_municipio', 'populacao']],
                 on='codigo_municipio',
                 how='left'
             )
+            
+            # Para municípios sem população, usa estimativa baseada no PIB
+            mask_sem_pop = df_pib['populacao'].isna() | (df_pib['populacao'] == 0)
+            if mask_sem_pop.any():
+                print(f"⚠️ Estimando população para {mask_sem_pop.sum()} municípios")
+                pib_max = df_pib.loc[~mask_sem_pop, 'pib_total_reais'].max() if (~mask_sem_pop).any() else df_pib['pib_total_reais'].max()
+                
+                for idx in df_pib[mask_sem_pop].index:
+                    # Estima baseado no PIB relativo
+                    pib_relativo = df_pib.loc[idx, 'pib_total_reais'] / pib_max if pib_max > 0 else 0.1
+                    # População estimada entre 2000 e 2 milhões
+                    pop_estimada = int(pib_relativo * 2000000 + 2000)
+                    df_pib.loc[idx, 'populacao'] = max(2000, min(2000000, pop_estimada))
         else:
             print("⚠️ Estimando população com base no PIB...")
             pib_max = df_pib['pib_total_reais'].max()
             df_pib['populacao'] = (df_pib['pib_total_reais'] / pib_max * 12000000).astype(int)
             df_pib['populacao'] = df_pib['populacao'].clip(lower=1000, upper=12000000)
         
+        # Garante que população seja inteiro positivo
+        df_pib['populacao'] = df_pib['populacao'].fillna(20000).astype(int)
+        df_pib['populacao'] = df_pib['populacao'].clip(lower=1000)
+        
+        # Calcula PIB per capita
         df_pib['pib_per_capita'] = (df_pib['pib_total_reais'] / df_pib['populacao']).round(0)
         
+        # Calcula renda
         df_pib['renda_per_capita_estimada'] = (df_pib['pib_per_capita'] * 0.6).round(0)
         df_pib['renda_familiar_estimada'] = (df_pib['renda_per_capita_estimada'] * 3).round(0)
         
@@ -234,6 +258,8 @@ class IBGEAPIClient:
         df_pib = df_pib.sort_values('renda_familiar_estimada', ascending=False)
         
         print(f"✅ Consolidado: {len(df_pib)} municípios")
+        print(f"📊 População total: {df_pib['populacao'].sum():,.0f}".replace(",", "."))
+        
         return df_pib
     
     def _gerar_dados_fallback(self, ano: int) -> pd.DataFrame:
@@ -251,16 +277,16 @@ class IBGEAPIClient:
                 populacao = DADOS_REAIS_REFERENCIA[municipio]['populacao']
             else:
                 # Distribuição baseada no tamanho/importância do município
-                if i < 20:
+                if i < 20:  # Grandes centros
                     pib_per_capita = random.randint(45000, 80000)
                     populacao = random.randint(200000, 5000000)
-                elif i < 100:
+                elif i < 100:  # Cidades médias
                     pib_per_capita = random.randint(30000, 45000)
                     populacao = random.randint(50000, 200000)
-                elif i < 300:
+                elif i < 300:  # Cidades pequeno-médias
                     pib_per_capita = random.randint(20000, 30000)
                     populacao = random.randint(15000, 50000)
-                else:
+                else:  # Cidades pequenas
                     pib_per_capita = random.randint(12000, 20000)
                     populacao = random.randint(2000, 15000)
             
@@ -269,7 +295,7 @@ class IBGEAPIClient:
                 'municipio': municipio,
                 'pib_total_mil': (pib_per_capita * populacao) / 1000,
                 'pib_total_reais': pib_per_capita * populacao,
-                'populacao': populacao,
+                'populacao': populacao,  # População sempre definida
                 'pib_per_capita': pib_per_capita,
                 'renda_per_capita_estimada': pib_per_capita * 0.6,
                 'renda_familiar_estimada': pib_per_capita * 0.6 * 3,
@@ -291,6 +317,10 @@ class IBGEAPIClient:
                 return "Alta renda"
         
         df['classificacao'] = df['renda_familiar_estimada'].apply(classificar)
+        
+        # Garante que população seja inteiro
+        df['populacao'] = df['populacao'].astype(int)
+        
         return df
     
     def listar_municipios(self, df_consolidado: pd.DataFrame) -> List[str]:
@@ -329,19 +359,15 @@ def filtrar_municipios_por_texto(municipios_lista: List[str], texto_busca: str) 
 # ==================== FUNÇÕES DE VISUALIZAÇÃO ====================
 
 def formatar_numero(valor) -> str:
-    """Formata número com separador de milhar e sufixo para números grandes"""
+    """Formata número com separador de milhar (padrão brasileiro)"""
     if valor is None or valor == 'N/A' or pd.isna(valor):
         return 'N/A'
     try:
+        # Converte para número inteiro (remove decimais)
         numero = int(float(valor))
-        
-        # Para números muito grandes, adiciona sufixo
-        if numero >= 1_000_000:
-            # Formata com 1 casa decimal para milhões
-            return f"{numero/1_000_000:.1f} milhões".replace(".", ",")
-        else:
-            # Formata com separador de milhar
-            return f"{numero:,}".replace(",", ".")
+        # Formata com separador de milhar
+        # Ex: 11451245 -> "11.451.245"
+        return f"{numero:,}".replace(",", ".")
     except (ValueError, TypeError):
         return str(valor)
 
@@ -557,7 +583,6 @@ def carregar_dados():
 # ==================== MENU LATERAL ====================
 
 with st.sidebar:
-    # Remove a imagem - apenas título
     st.title("🔍 Filtros")
     
     st.markdown("---")
@@ -632,7 +657,6 @@ if df_principal is not None and not df_principal.empty and municipio_selecionado
         row = municipio_data.iloc[0]
         renda_familiar = row['renda_familiar_estimada']
         classificacao = row['classificacao']
-        populacao = row.get('populacao', 'N/A')
         pib_per_capita = row.get('pib_per_capita', 'N/A')
         
         # Métricas principais
@@ -662,12 +686,37 @@ if df_principal is not None and not df_principal.empty and municipio_selecionado
             )
         
         with col3:
-            # População com formatação de separador de milhar
-            if populacao != 'N/A' and isinstance(populacao, (int, float)):
-                pop_formatada = formatar_numero(populacao)
-                st.metric("👥 População", pop_formatada, delta=None)
-            else:
-                st.metric("👥 População", "N/A")
+            # CORREÇÃO: Exibe população com separador de milhar
+            try:
+                # Tenta diferentes formas de obter a população
+                if 'populacao' in row and row['populacao'] is not None:
+                    pop_valor = row['populacao']
+                elif 'populacao' in row.index and pd.notna(row['populacao']):
+                    pop_valor = row['populacao']
+                else:
+                    pop_valor = None
+                
+                # Verifica se é um número válido
+                if pop_valor is not None and pop_valor != 'N/A' and pd.notna(pop_valor):
+                    # Converte para número se for string
+                    if isinstance(pop_valor, str):
+                        # Remove pontos e vírgulas e converte para número
+                        pop_valor = float(pop_valor.replace('.', '').replace(',', '.'))
+                    
+                    pop_formatada = formatar_numero(pop_valor)
+                    st.metric("👥 População", pop_formatada, delta=None)
+                else:
+                    # Fallback: tenta obter do dicionário de referência
+                    if municipio_selecionado in DADOS_REAIS_REFERENCIA:
+                        pop_referencia = DADOS_REAIS_REFERENCIA[municipio_selecionado]['populacao']
+                        st.metric("👥 População", formatar_numero(pop_referencia), delta=None)
+                        st.caption("ℹ️ Dado baseado em referência local")
+                    else:
+                        st.metric("👥 População", "Dados não disponíveis", delta=None)
+                        st.caption("ℹ️ População não encontrada nos dados")
+            except Exception as e:
+                st.metric("👥 População", "Erro ao carregar", delta=None)
+                print(f"Erro ao exibir população para {municipio_selecionado}: {e}")
         
         with col4:
             ranking = df_principal['renda_familiar_estimada'].rank(ascending=False)[municipio_data.index[0]]
@@ -728,86 +777,4 @@ if df_principal is not None and not df_principal.empty and municipio_selecionado
         
         # Comparação entre cidades
         if mostrar_comparacao and 'cidades_para_comparar' in locals() and len(cidades_para_comparar) > 1:
-            st.subheader("🔄 Comparação entre Municípios")
-            
-            df_comparacao = df_principal[df_principal['municipio'].isin(cidades_para_comparar)]
-            df_comparacao = df_comparacao.sort_values('renda_familiar_estimada', ascending=False)
-            
-            fig_comparativo = go.Figure()
-            cores_comparacao = px.colors.qualitative.Set3
-            
-            for i, (_, row) in enumerate(df_comparacao.iterrows()):
-                fig_comparativo.add_trace(go.Bar(
-                    x=[row['municipio']],
-                    y=[row['renda_familiar_estimada']],
-                    name=row['municipio'],
-                    marker_color=cores_comparacao[i % len(cores_comparacao)],
-                    text=f"R$ {row['renda_familiar_estimada']:,.0f}",
-                    textposition='outside'
-                ))
-            
-            fig_comparativo.update_layout(
-                title="Comparação de Renda entre Municípios",
-                xaxis_title="Município",
-                yaxis_title="Renda Familiar (R$)",
-                showlegend=False,
-                height=450
-            )
-            fig_comparativo.update_yaxes(tickprefix="R$ ", tickformat=",.0f")
-            st.plotly_chart(fig_comparativo, use_container_width=True)
-        
-        # Distribuição geral
-        st.subheader("📊 Distribuição Geral no Estado")
-        col_dist1, col_dist2 = st.columns(2)
-        
-        with col_dist1:
-            fig_pizza = criar_pizza_distribuicao(df_principal)
-            st.plotly_chart(fig_pizza, use_container_width=True)
-        
-        with col_dist2:
-            # Estatísticas gerais
-            st.markdown("### 📈 Estatísticas do Estado")
-            st.metric(
-                "Renda Média Estadual",
-                f"R$ {df_principal['renda_familiar_estimada'].mean():,.0f}".replace(",", "."),
-                delta=None
-            )
-            st.metric(
-                "Renda Mediana Estadual", 
-                f"R$ {df_principal['renda_familiar_estimada'].median():,.0f}".replace(",", "."),
-                delta=None
-            )
-            cidade_maior = df_principal.loc[df_principal['renda_familiar_estimada'].idxmax(), 'municipio']
-            st.metric(
-                "Município com Maior Renda",
-                cidade_maior,
-                delta=None
-            )
-        
-        # Download dos dados
-        st.subheader("📥 Exportar Dados")
-        
-        csv_completo = df_principal.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="📊 Baixar dados completos (CSV)",
-            data=csv_completo,
-            file_name=f"renda_municipios_sp_{datetime.now().strftime('%Y%m%d')}.csv",
-            mime="text/csv"
-        )
-
-else:
-    if municipio_selecionado is None and texto_busca:
-        st.info("🔍 Digite o nome de uma cidade para começar a busca")
-    else:
-        st.error("❌ Não foi possível carregar os dados. Verifique sua conexão com a internet e tente novamente.")
-
-
-# ==================== RODAPÉ ====================
-
-st.markdown("""
-<div class="footer">
-    <p>📊 Dashboard desenvolvido com Streamlit | Dados: IBGE SIDRA (Tabela 5938 - PIB Municipal)</p>
-    <p>🔍 Fonte oficial: Instituto Brasileiro de Geografia e Estatística | Última atualização: {}</p>
-    <p>💡 Metodologia: Renda familiar estimada = (PIB per capita × 0,6) × 3 pessoas</p>
-</div>
-""".format(datetime.now().strftime("%d/%m/%Y %H:%M")), unsafe_allow_html=True)
+            st.subheader("🔄 Comparação entre
