@@ -14,13 +14,6 @@ from typing import Optional, List, Dict
 import numpy as np
 import random
 
-from utils import formatar_numero_brasil, formatar_moeda_brasil
-
-# No card da população
-st.metric("👥 População", formatar_numero_brasil(populacao))
-
-# Para valores monetários
-st.metric("💰 Renda", formatar_moeda_brasil(renda))
 
 # Importa a lista de municípios do arquivo separado
 from src.municipios_sp import MUNICIPIOS_SP, DADOS_REAIS_REFERENCIA, get_municipios_ordenados
