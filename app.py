@@ -594,7 +594,7 @@ with st.sidebar:
     
     # Campo de busca com autocomplete funcional
     texto_busca = st.text_input(
-        "Digite o nome do Município:",
+        "Digite o nome da cidade:",
         placeholder="Ex: São Paulo, Campinas, Adamantina...",
         help="Digite parte do nome da cidade para filtrar"
     )
@@ -609,7 +609,7 @@ with st.sidebar:
     # Selectbox com os municípios filtrados
     if municipios_filtrados:
         municipio_selecionado = st.selectbox(
-            "Escolha um Município:",
+            "Escolha uma cidade:",
             options=municipios_filtrados,
             index=0,
             help="Selecione um município paulista para visualizar os dados de renda"
@@ -777,4 +777,86 @@ if df_principal is not None and not df_principal.empty and municipio_selecionado
         
         # Comparação entre cidades
         if mostrar_comparacao and 'cidades_para_comparar' in locals() and len(cidades_para_comparar) > 1:
-            st.subheader("🔄 Comparação entre
+            st.subheader("🔄 Comparação entre Municípios")
+            
+            df_comparacao = df_principal[df_principal['municipio'].isin(cidades_para_comparar)]
+            df_comparacao = df_comparacao.sort_values('renda_familiar_estimada', ascending=False)
+            
+            fig_comparativo = go.Figure()
+            cores_comparacao = px.colors.qualitative.Set3
+            
+            for i, (_, row) in enumerate(df_comparacao.iterrows()):
+                fig_comparativo.add_trace(go.Bar(
+                    x=[row['municipio']],
+                    y=[row['renda_familiar_estimada']],
+                    name=row['municipio'],
+                    marker_color=cores_comparacao[i % len(cores_comparacao)],
+                    text=f"R$ {row['renda_familiar_estimada']:,.0f}",
+                    textposition='outside'
+                ))
+            
+            fig_comparativo.update_layout(
+                title="Comparação de Renda entre Municípios",
+                xaxis_title="Município",
+                yaxis_title="Renda Familiar (R$)",
+                showlegend=False,
+                height=450
+            )
+            fig_comparativo.update_yaxes(tickprefix="R$ ", tickformat=",.0f")
+            st.plotly_chart(fig_comparativo, use_container_width=True)
+        
+        # Distribuição geral
+        st.subheader("📊 Distribuição Geral no Estado")
+        col_dist1, col_dist2 = st.columns(2)
+        
+        with col_dist1:
+            fig_pizza = criar_pizza_distribuicao(df_principal)
+            st.plotly_chart(fig_pizza, use_container_width=True)
+        
+        with col_dist2:
+            # Estatísticas gerais
+            st.markdown("### 📈 Estatísticas do Estado")
+            st.metric(
+                "Renda Média Estadual",
+                f"R$ {df_principal['renda_familiar_estimada'].mean():,.0f}".replace(",", "."),
+                delta=None
+            )
+            st.metric(
+                "Renda Mediana Estadual", 
+                f"R$ {df_principal['renda_familiar_estimada'].median():,.0f}".replace(",", "."),
+                delta=None
+            )
+            cidade_maior = df_principal.loc[df_principal['renda_familiar_estimada'].idxmax(), 'municipio']
+            st.metric(
+                "Município com Maior Renda",
+                cidade_maior,
+                delta=None
+            )
+        
+        # Download dos dados
+        st.subheader("📥 Exportar Dados")
+        
+        csv_completo = df_principal.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📊 Baixar dados completos (CSV)",
+            data=csv_completo,
+            file_name=f"renda_municipios_sp_{datetime.now().strftime('%Y%m%d')}.csv",
+            mime="text/csv"
+        )
+
+else:
+    if municipio_selecionado is None and texto_busca:
+        st.info("🔍 Digite o nome de uma cidade para começar a busca")
+    else:
+        st.error("❌ Não foi possível carregar os dados. Verifique sua conexão com a internet e tente novamente.")
+
+
+# ==================== RODAPÉ ====================
+
+st.markdown("""
+<div class="footer">
+    <p>📊 Dashboard desenvolvido com Streamlit | Dados: IBGE SIDRA (Tabela 5938 - PIB Municipal)</p>
+    <p>🔍 Fonte oficial: Instituto Brasileiro de Geografia e Estatística | Última atualização: {}</p>
+    <p>💡 Metodologia: Renda familiar estimada = (PIB per capita × 0,6) × 3 pessoas</p>
+</div>
+""".format(datetime.now().strftime("%d/%m/%Y %H:%M")), unsafe_allow_html=True)
