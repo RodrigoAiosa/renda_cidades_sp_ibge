@@ -79,37 +79,7 @@ A ferramenta foi desenvolvida para democratizar o acesso a dados socioeconômico
 
 ## 🏗️ Arquitetura do Sistema
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     Interface Streamlit                      │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │ Menu Lateral  │  │  Dashboard   │  │  Visualiza-  │      │
-│  │   - Filtros   │  │  Principal   │  │   ções       │      │
-│  │   - Busca     │  │  - Cards     │  │  - Gráficos  │      │
-│  │   - Configs   │  │  - Métricas  │  │  - Rankings  │      │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘      │
-│         │                 │                 │               │
-│         └─────────────────┼─────────────────┘               │
-│                           │                                 │
-│                  ┌────────▼────────┐                        │
-│                  │  Cache Layer    │                        │
-│                  │  (st.cache_data)│                        │
-│                  └────────┬────────┘                        │
-└───────────────────────────┼─────────────────────────────────┘
-                            │
-              ┌─────────────▼─────────────┐
-              │    IBGE API Client        │
-              │  ┌─────────────────────┐  │
-              │  │ Tabela 5938 - PIB   │  │
-              │  │ Tabela 6579 - Pop.  │  │
-              │  └─────────────────────┘  │
-              └─────────────┬─────────────┘
-                            │
-              ┌─────────────▼─────────────┐
-              │     IBGE SIDRA API        │
-              │  (Dados Oficiais)         │
-              └───────────────────────────┘
-```
+imagem
 
 ### Fluxo de Dados
 
