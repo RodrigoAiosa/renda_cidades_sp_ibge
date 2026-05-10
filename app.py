@@ -305,7 +305,39 @@ class IBGEAPIClient:
         return sorted(MUNICIPIOS_SP)
 
 
+# ==================== FUNÇÃO DE BUSCA COM AUTOCOMPLETE ====================
+
+def filtrar_municipios_por_texto(municipios_lista: List[str], texto_busca: str) -> List[str]:
+    """
+    Filtra a lista de municípios baseado no texto digitado pelo usuário
+    """
+    if not texto_busca or texto_busca.strip() == "":
+        return municipios_lista[:100]  # Retorna os primeiros 100 se não houver busca
+    
+    texto_lower = texto_busca.strip().lower()
+    
+    # Busca por parte do texto (contém)
+    resultados = [m for m in municipios_lista if texto_lower in m.lower()]
+    
+    # Ordena resultados: primeiro os que começam com o texto, depois os que contêm
+    resultados.sort(key=lambda x: (not x.lower().startswith(texto_lower), x))
+    
+    return resultados
+
+
 # ==================== FUNÇÕES DE VISUALIZAÇÃO ====================
+
+def formatar_numero(valor) -> str:
+    """Formata número com separador de milhar"""
+    if valor is None or valor == 'N/A':
+        return 'N/A'
+    try:
+        if isinstance(valor, (int, float)):
+            return f"{valor:,.0f}".replace(",", ".")
+        return str(valor)
+    except:
+        return str(valor)
+
 
 def criar_grafico_barras_ranking(df, titulo):
     """Cria gráfico de barras para ranking de renda"""
@@ -518,8 +550,7 @@ def carregar_dados():
 # ==================== MENU LATERAL ====================
 
 with st.sidebar:
-    st.image("https://raw.githubusercontent.com/streamlit/streamlit/develop/examples/iris/iris.png", 
-             width=80)
+    # Remove a imagem - apenas título
     st.title("🔍 Filtros")
     
     st.markdown("---")
@@ -529,13 +560,31 @@ with st.sidebar:
     
     st.markdown("### 📍 Seleção de Município")
     
-    # Campo de busca para município
-    municipio_selecionado = st.selectbox(
-        "Escolha uma cidade:",
-        options=lista_municipios if lista_municipios else ["Carregando..."],
-        index=0 if lista_municipios else None,
-        help="Selecione um município paulista para visualizar os dados de renda"
+    # Campo de busca com autocomplete funcional
+    texto_busca = st.text_input(
+        "Digite o nome da cidade:",
+        placeholder="Ex: São Paulo, Campinas, Adamantina...",
+        help="Digite parte do nome da cidade para filtrar"
     )
+    
+    # Filtra municípios baseado no texto digitado
+    municipios_filtrados = filtrar_municipios_por_texto(lista_municipios, texto_busca)
+    
+    # Mostra quantidade de resultados
+    if texto_busca:
+        st.caption(f"🔍 {len(municipios_filtrados)} cidade(s) encontrada(s)")
+    
+    # Selectbox com os municípios filtrados
+    if municipios_filtrados:
+        municipio_selecionado = st.selectbox(
+            "Escolha uma cidade:",
+            options=municipios_filtrados,
+            index=0,
+            help="Selecione um município paulista para visualizar os dados de renda"
+        )
+    else:
+        st.warning("⚠️ Nenhuma cidade encontrada com esse nome")
+        municipio_selecionado = None
     
     st.markdown("---")
     
@@ -606,12 +655,10 @@ if df_principal is not None and not df_principal.empty and municipio_selecionado
             )
         
         with col3:
-            if populacao != 'N/A':
-                st.metric(
-                    "👥 População",
-                    f"{populacao:,.0f}".replace(",", ".") if isinstance(populacao, (int, float)) else str(populacao),
-                    delta=None
-                )
+            # População com formatação de separador de milhar
+            if populacao != 'N/A' and isinstance(populacao, (int, float)):
+                pop_formatada = formatar_numero(populacao)
+                st.metric("👥 População", pop_formatada, delta=None)
             else:
                 st.metric("👥 População", "N/A")
         
@@ -669,10 +716,11 @@ if df_principal is not None and not df_principal.empty and municipio_selecionado
             st.subheader("📋 Tabela Completa")
             tabela_exibicao = df_principal[['municipio', 'renda_familiar_estimada', 'classificacao', 'populacao']].head(100).copy()
             tabela_exibicao['renda_familiar_estimada'] = tabela_exibicao['renda_familiar_estimada'].apply(lambda x: f'R$ {x:,.0f}')
+            tabela_exibicao['populacao'] = tabela_exibicao['populacao'].apply(formatar_numero)
             st.dataframe(tabela_exibicao, use_container_width=True, hide_index=True)
         
         # Comparação entre cidades
-        if mostrar_comparacao and len(cidades_para_comparar) > 1:
+        if mostrar_comparacao and 'cidades_para_comparar' in locals() and len(cidades_para_comparar) > 1:
             st.subheader("🔄 Comparação entre Municípios")
             
             df_comparacao = df_principal[df_principal['municipio'].isin(cidades_para_comparar)]
@@ -741,7 +789,10 @@ if df_principal is not None and not df_principal.empty and municipio_selecionado
         )
 
 else:
-    st.error("❌ Não foi possível carregar os dados. Verifique sua conexão com a internet e tente novamente.")
+    if municipio_selecionado is None and texto_busca:
+        st.info("🔍 Digite o nome de uma cidade para começar a busca")
+    else:
+        st.error("❌ Não foi possível carregar os dados. Verifique sua conexão com a internet e tente novamente.")
 
 
 # ==================== RODAPÉ ====================
