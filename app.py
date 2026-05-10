@@ -616,8 +616,6 @@ with st.sidebar:
 
 # ==================== DASHBOARD PRINCIPAL ====================
 
-# ==================== DASHBOARD PRINCIPAL ====================
-
 if df_principal is not None and not df_principal.empty and municipio_selecionado:
     
     # Filtra dados do município selecionado
@@ -627,40 +625,8 @@ if df_principal is not None and not df_principal.empty and municipio_selecionado
         row = municipio_data.iloc[0]
         renda_familiar = row['renda_familiar_estimada']
         classificacao = row['classificacao']
-        
-        # ===== CORREÇÃO: OBTENÇÃO DA POPULAÇÃO =====
-        # Tenta obter população de diferentes formas
-        populacao = None
-        if 'populacao' in row.index:
-            populacao = row['populacao']
-        
-        # Se populacao for None ou NaN, tenta calcular a partir do PIB
-        if populacao is None or pd.isna(populacao):
-            pib_total_reais = row.get('pib_total_reais', None)
-            pib_per_capita = row.get('pib_per_capita', None)
-            if pib_total_reais is not None and pib_per_capita is not None and pib_per_capita > 0:
-                populacao = pib_total_reais / pib_per_capita
-            else:
-                # Fallback: população estimada baseada no ranking
-                rank_pos = df_principal.index.get_loc(municipio_data.index[0])
-                total_municipios = len(df_principal)
-                # Quanto maior a renda, maior a tendência de população maior
-                fator = 1 - (rank_pos / total_municipios)  # 0 a 1
-                populacao = int(10000 + (fator * 5000000))  # Entre 10k e 5M
-        
-        # Garante que é número inteiro e positivo
-        if populacao is not None:
-            try:
-                populacao = int(abs(float(populacao)))
-                if populacao < 1000:
-                    populacao = 1000  # Valor mínimo razoável
-            except:
-                populacao = None
-        
+        populacao = row.get('populacao', 'N/A')
         pib_per_capita = row.get('pib_per_capita', 'N/A')
-        
-        # Debug (opcional - pode remover depois)
-        print(f"Município: {municipio_selecionado}, População: {populacao}")
         
         # Métricas principais
         st.subheader(f"🏙️ Análise de Renda - {municipio_selecionado}")
@@ -690,37 +656,23 @@ if df_principal is not None and not df_principal.empty and municipio_selecionado
         
         with col3:
             # População com formatação de separador de milhar
-            if populacao is not None and populacao != 'N/A' and not pd.isna(populacao):
+            if populacao != 'N/A' and isinstance(populacao, (int, float)):
                 pop_formatada = formatar_numero(populacao)
                 st.metric("👥 População", pop_formatada, delta=None)
             else:
-                # Tenta buscar da lista de dados reais como fallback
-                from src.municipios_sp import DADOS_REAIS_REFERENCIA
-                if municipio_selecionado in DADOS_REAIS_REFERENCIA:
-                    pop_real = DADOS_REAIS_REFERENCIA[municipio_selecionado].get('populacao', None)
-                    if pop_real:
-                        st.metric("👥 População", formatar_numero(pop_real), delta=None)
-                    else:
-                        st.metric("👥 População", "Dado não disponível")
-                else:
-                    st.metric("👥 População", "Dado não disponível")
+                st.metric("👥 População", "N/A")
         
         with col4:
-            # Calcula ranking
-            try:
-                ranking = df_principal['renda_familiar_estimada'].rank(ascending=False)[municipio_data.index[0]]
-                total = len(df_principal)
-                st.metric(
-                    "🏆 Ranking Estadual",
-                    f"{int(ranking)}º de {total} municípios",
-                    delta=None
-                )
-            except:
-                st.metric("🏆 Ranking Estadual", "N/A")
+            ranking = df_principal['renda_familiar_estimada'].rank(ascending=False)[municipio_data.index[0]]
+            total = len(df_principal)
+            st.metric(
+                "🏆 Ranking Estadual",
+                f"{int(ranking)}º de {total} municípios",
+                delta=None
+            )
         
         st.markdown("---")
         
-        # Resto do código continua igual...
         # Gráfico Gauge
         st.subheader("📈 Indicador de Renda")
         fig_gauge = criar_indicador_gauge(renda_familiar, classificacao, municipio_selecionado)
@@ -743,7 +695,7 @@ if df_principal is not None and not df_principal.empty and municipio_selecionado
             | 🔴 **Baixa renda** | Abaixo de R$ 3.000 | Necessidades básicas |
             """)
         
-        # Ranking (se habilitado)
+        # Ranking
         if mostrar_ranking:
             st.subheader("🏆 Ranking de Renda por Município")
             
@@ -764,17 +716,10 @@ if df_principal is not None and not df_principal.empty and municipio_selecionado
             st.subheader("📋 Tabela Completa")
             tabela_exibicao = df_principal[['municipio', 'renda_familiar_estimada', 'classificacao', 'populacao']].head(100).copy()
             tabela_exibicao['renda_familiar_estimada'] = tabela_exibicao['renda_familiar_estimada'].apply(lambda x: f'R$ {x:,.0f}')
-            
-            # Formata população na tabela
-            def fmt_pop(val):
-                if val is None or pd.isna(val):
-                    return 'N/A'
-                return formatar_numero(val)
-            
-            tabela_exibicao['populacao'] = tabela_exibicao['populacao'].apply(fmt_pop)
+            tabela_exibicao['populacao'] = tabela_exibicao['populacao'].apply(formatar_numero)
             st.dataframe(tabela_exibicao, use_container_width=True, hide_index=True)
         
-        # Comparação entre cidades (se habilitado)
+        # Comparação entre cidades
         if mostrar_comparacao and 'cidades_para_comparar' in locals() and len(cidades_para_comparar) > 1:
             st.subheader("🔄 Comparação entre Municípios")
             
@@ -815,19 +760,14 @@ if df_principal is not None and not df_principal.empty and municipio_selecionado
         with col_dist2:
             # Estatísticas gerais
             st.markdown("### 📈 Estatísticas do Estado")
-            
-            # Calcula média apenas com valores válidos
-            renda_media = df_principal['renda_familiar_estimada'].mean()
-            renda_mediana = df_principal['renda_familiar_estimada'].median()
-            
             st.metric(
                 "Renda Média Estadual",
-                f"R$ {renda_media:,.0f}".replace(",", "."),
+                f"R$ {df_principal['renda_familiar_estimada'].mean():,.0f}".replace(",", "."),
                 delta=None
             )
             st.metric(
                 "Renda Mediana Estadual", 
-                f"R$ {renda_mediana:,.0f}".replace(",", "."),
+                f"R$ {df_principal['renda_familiar_estimada'].median():,.0f}".replace(",", "."),
                 delta=None
             )
             cidade_maior = df_principal.loc[df_principal['renda_familiar_estimada'].idxmax(), 'municipio']
@@ -840,12 +780,7 @@ if df_principal is not None and not df_principal.empty and municipio_selecionado
         # Download dos dados
         st.subheader("📥 Exportar Dados")
         
-        # Prepara CSV com população formatada
-        df_export = df_principal.copy()
-        if 'populacao' in df_export.columns:
-            df_export['populacao'] = df_export['populacao'].apply(lambda x: formatar_numero(x) if pd.notna(x) else 'N/A')
-        
-        csv_completo = df_export.to_csv(index=False).encode('utf-8')
+        csv_completo = df_principal.to_csv(index=False).encode('utf-8')
         st.download_button(
             label="📊 Baixar dados completos (CSV)",
             data=csv_completo,
@@ -854,10 +789,11 @@ if df_principal is not None and not df_principal.empty and municipio_selecionado
         )
 
 else:
-    if municipio_selecionado is None and 'texto_busca' in locals() and texto_busca:
+    if municipio_selecionado is None and texto_busca:
         st.info("🔍 Digite o nome de uma cidade para começar a busca")
     else:
         st.error("❌ Não foi possível carregar os dados. Verifique sua conexão com a internet e tente novamente.")
+
 
 # ==================== RODAPÉ ====================
 
