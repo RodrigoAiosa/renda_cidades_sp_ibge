@@ -329,14 +329,20 @@ def filtrar_municipios_por_texto(municipios_lista: List[str], texto_busca: str) 
 # ==================== FUNÇÕES DE VISUALIZAÇÃO ====================
 
 def formatar_numero(valor) -> str:
-    """Formata número com separador de milhar"""
-    if valor is None or valor == 'N/A':
+    """Formata número com separador de milhar e sufixo para números grandes"""
+    if valor is None or valor == 'N/A' or pd.isna(valor):
         return 'N/A'
     try:
-        if isinstance(valor, (int, float)):
-            return f"{valor:,.0f}".replace(",", ".")
-        return str(valor)
-    except:
+        numero = int(float(valor))
+        
+        # Para números muito grandes, adiciona sufixo
+        if numero >= 1_000_000:
+            # Formata com 1 casa decimal para milhões
+            return f"{numero/1_000_000:.1f} milhões".replace(".", ",")
+        else:
+            # Formata com separador de milhar
+            return f"{numero:,}".replace(",", ".")
+    except (ValueError, TypeError):
         return str(valor)
 
 
