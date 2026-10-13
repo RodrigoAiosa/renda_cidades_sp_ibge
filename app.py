@@ -17,6 +17,7 @@ import random
 
 # Importa a lista de municípios do arquivo separado
 from src.municipios_sp import MUNICIPIOS_SP, DADOS_REAIS_REFERENCIA, get_municipios_ordenados
+from esconder_selo import esconder_selo_streamlit
 
 # Configuração da página (deve ser o primeiro comando)
 st.set_page_config(
@@ -25,6 +26,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+esconder_selo_streamlit()  # oculta os controles do Streamlit Cloud
 
 # ==================== CLIENTE DA API IBGE ====================
 
