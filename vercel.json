@@ -1,9 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "installCommand": "echo sem dependencias",
-  "buildCommand": "mkdir -p dist && cp index.html dist/index.html",
-  "outputDirectory": "dist",
+  "buildCommand": "",
+  "installCommand": "",
+  "regions": ["gru1"],
+  "functions": {
+    "api/renda.js": { "maxDuration": 60 }
+  },
   "headers": [
     {
       "source": "/(.*)",

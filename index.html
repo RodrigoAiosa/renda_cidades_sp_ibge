@@ -1,137 +1,410 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Renda por Município — São Paulo</title>
-  <meta name="description" content="PIB per capita e indicadores de renda dos municípios de São Paulo, com dados oficiais do IBGE.">
-  <meta name="theme-color" content="#1f77b4">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Renda por Município — São Paulo</title>
+<meta name="description" content="PIB per capita e renda familiar estimada dos 645 municípios de São Paulo, com dados oficiais do IBGE: ranking, comparação entre cidades e série histórica.">
+<meta property="og:title" content="Renda por Município — São Paulo">
+<meta property="og:description" content="Explore a renda dos municípios paulistas com dados oficiais do IBGE.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.2/plotly-basic.min.js"></script>
+<style>
+:root {
+  --bg: #f5f3ee; --surface: #ffffff; --surface-2: #efece4; --ink: #1c2321; --ink-2: #4c5551; --ink-3: #7c847f;
+  --line: #ddd8cd; --accent: #0f6e5a; --accent-soft: rgba(15,110,90,.1);
+  --c-alta: #1b7f4a; --c-mediaalta: #2f6db5; --c-media: #d1a21c; --c-mediabaixa: #e07b28; --c-baixa: #c8402f;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #121614; --surface: #1a1f1d; --surface-2: #232927; --ink: #edf0ee; --ink-2: #b3bbb7; --ink-3: #848d88; --line: #2e3533; --accent: #3fbf9c; --accent-soft: rgba(63,191,156,.13); color-scheme: dark; }
+}
+:root[data-theme="dark"] { --bg: #121614; --surface: #1a1f1d; --surface-2: #232927; --ink: #edf0ee; --ink-2: #b3bbb7; --ink-3: #848d88; --line: #2e3533; --accent: #3fbf9c; --accent-soft: rgba(63,191,156,.13); color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 400 15px/1.55 "Public Sans", system-ui, sans-serif; }
+.wrap { max-width: 1200px; margin: 0 auto; padding: 0 16px; }
+header.top { padding: 40px 0 20px; display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: end; }
+.eyebrow { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+h1 { font-family: "Fraunces", Georgia, serif; font-weight: 700; font-size: clamp(30px, 5vw, 50px); line-height: 1.05; margin: 8px 0 8px; letter-spacing: -.02em; }
+.lede { color: var(--ink-2); margin: 0; max-width: 640px; }
+h2 { font-family: "Fraunces", Georgia, serif; font-weight: 600; font-size: 24px; margin: 0 0 4px; letter-spacing: -.01em; }
+h3 { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 12px; font-weight: 700; }
+.sub { color: var(--ink-2); font-size: 14px; margin: 0 0 14px; }
 
-  <meta property="og:type" content="website">
-  <meta property="og:title" content="Renda por Município — São Paulo">
-  <meta property="og:description" content="Explore a renda dos municípios paulistas com dados oficiais do IBGE.">
+.bar { position: sticky; top: 0; z-index: 5; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); padding: 12px 0; margin-bottom: 22px; }
+.bar .wrap { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label { font-size: 12px; font-weight: 600; color: var(--ink-2); }
+input[type=search], select { font: 500 15px "Public Sans", sans-serif; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; min-height: 42px; }
+#busca { width: min(420px, 82vw); }
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.status { margin-left: auto; font-size: 12px; color: var(--ink-3); align-self: center; }
 
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%92%B0%3C/text%3E%3C/svg%3E">
+.grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+.metric .k { font-size: 13px; color: var(--ink-3); }
+.metric .v { font-size: clamp(22px, 2.6vw, 30px); font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.01em; margin-top: 2px; line-height: 1.2; }
+.metric .s { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+.pill { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; }
+.pill i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+section.block { margin-top: 26px; }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.chart { width: 100%; height: 360px; }
+.chart.tall { height: 560px; }
 
-  <style>
-    :root {
-      --cor: #1f77b4;
-      --fundo: #ffffff;
-    }
-    * { box-sizing: border-box; }
-    html, body {
-      margin: 0;
-      height: 100%;
-      background: var(--fundo);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
+.scale { margin-top: 6px; }
+.scale .track { position: relative; display: grid; grid-template-columns: 3fr 3fr 7.3fr 11.7fr 5fr; height: 16px; border-radius: 99px; overflow: hidden; }
+.scale .track span:nth-child(1) { background: var(--c-baixa); } .scale .track span:nth-child(2) { background: var(--c-mediabaixa); }
+.scale .track span:nth-child(3) { background: var(--c-media); } .scale .track span:nth-child(4) { background: var(--c-mediaalta); } .scale .track span:nth-child(5) { background: var(--c-alta); }
+.scale .marker { position: relative; height: 30px; }
+.scale .marker b { position: absolute; top: 4px; transform: translateX(-50%); width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 10px solid var(--ink); }
+.scale .ticks { position: relative; height: 18px; font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.scale .ticks span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 14px; font-size: 13px; color: var(--ink-2); }
+.legend span { display: inline-flex; gap: 6px; align-items: center; }
+.legend i { width: 10px; height: 10px; border-radius: 3px; }
 
-    /* O app ocupa 100% da tela. 100dvh evita o "pulo" da barra do navegador no celular. */
-    #app {
-      position: fixed;
-      inset: 0;
-      width: 100%;
-      height: 100vh;
-      height: 100dvh;
-      border: 0;
-      display: block;
-      background: var(--fundo);
-    }
-
-    /* Tela de carregamento: some assim que o app responde. */
-    #loading {
-      position: fixed;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 16px;
-      background: var(--fundo);
-      color: var(--cor);
-      font-size: 15px;
-      z-index: 2;
-      transition: opacity .3s ease;
-    }
-    #loading.hidden { opacity: 0; pointer-events: none; }
-    .spinner {
-      width: 38px;
-      height: 38px;
-      border: 4px solid rgba(31, 119, 180, .2);
-      border-top-color: var(--cor);
-      border-radius: 50%;
-      animation: spin .9s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* Aviso se o app demorar (o Streamlit Cloud "dorme" após inatividade). */
-    #slow { display: none; text-align: center; max-width: 320px; line-height: 1.5; padding: 0 16px; }
-    #slow a { color: var(--cor); font-weight: 700; }
-    #loading.slow #slow { display: block; }
-
-    @media (prefers-reduced-motion: reduce) {
-      .spinner { animation-duration: 3s; }
-    }
-  </style>
+.note { font-size: 13px; color: var(--ink-2); background: var(--surface-2); border-radius: 10px; padding: 12px 14px; }
+.note b { color: var(--ink); }
+details { margin-top: 12px; }
+summary { cursor: pointer; font-weight: 600; color: var(--ink-2); padding: 6px 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; background: var(--accent-soft); color: var(--ink); border: 1px solid var(--line); border-radius: 99px; padding: 4px 6px 4px 12px; font-size: 13px; font-weight: 600; }
+.chip button { appearance: none; border: 0; background: none; color: var(--ink-3); cursor: pointer; font-size: 16px; line-height: 1; padding: 0 4px; }
+.btn { appearance: none; border: 0; border-radius: 10px; background: var(--accent); color: #fff; font: 600 14px "Public Sans", sans-serif; padding: 0 16px; min-height: 42px; cursor: pointer; }
+.btn.ghost { background: var(--surface); color: var(--ink); border: 1px solid var(--line); }
+.table-wrap { overflow: auto; max-height: 560px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+th, td { padding: 9px 12px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+th { position: sticky; top: 0; background: var(--surface-2); color: var(--ink-2); font-weight: 600; cursor: pointer; user-select: none; }
+th[aria-sort="ascending"]::after { content: " ▲"; } th[aria-sort="descending"]::after { content: " ▼"; }
+td.num, th.num { text-align: right; }
+tr.sel td { background: var(--accent-soft); font-weight: 600; }
+tbody tr { cursor: pointer; }
+tbody tr:hover td { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+.loading { display: flex; gap: 10px; align-items: center; color: var(--ink-2); padding: 60px 0; justify-content: center; }
+.spin { width: 18px; height: 18px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: s .8s linear infinite; }
+@keyframes s { to { transform: rotate(360deg); } }
+.error { background: color-mix(in srgb, var(--c-baixa) 10%, transparent); border: 1px solid color-mix(in srgb, var(--c-baixa) 35%, transparent); border-radius: 12px; padding: 14px 16px; }
+footer { color: var(--ink-3); font-size: 12px; padding: 36px 0 48px; border-top: 1px solid var(--line); margin-top: 36px; }
+footer a { color: var(--ink-2); }
+@media (max-width: 900px) { .grid4 { grid-template-columns: 1fr 1fr; } .two { grid-template-columns: 1fr; } header.top { grid-template-columns: 1fr; } }
+@media (max-width: 520px) { .bar { position: static; } .grid4 { grid-template-columns: 1fr; } .status { margin-left: 0; } #busca { width: 100%; } .bar .field { flex: 1 1 100%; } .chart.tall { height: 640px; } }
+</style>
 </head>
 <body>
-
-  <div id="loading" role="status" aria-live="polite">
-    <div class="spinner" aria-hidden="true"></div>
-    <div>Carregando o painel de renda…</div>
-    <div id="slow">
-      Está demorando um pouco mais que o normal — o app pode estar acordando.<br>
-      Se preferir, <a id="fallback" href="#" target="_blank" rel="noopener">abra em uma nova aba</a>.
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">Dados oficiais do IBGE · 645 municípios</div>
+      <h1>Renda por Município — São Paulo</h1>
+      <p class="lede">PIB per capita e renda familiar estimada de cada cidade paulista, com ranking estadual, comparação entre municípios e série histórica.</p>
     </div>
+  </header>
+</div>
+
+<div class="bar">
+  <div class="wrap">
+    <div class="field"><label for="busca">Município</label>
+      <input type="search" id="busca" list="listaMun" placeholder="Digite o nome da cidade… ex.: Campinas" autocomplete="off" disabled>
+      <datalist id="listaMun"></datalist>
+    </div>
+    <div class="field"><label for="ano">Ano do PIB</label><select id="ano" disabled><option>…</option></select></div>
+    <div class="status" id="status"></div>
   </div>
+</div>
 
-  <!--
-    ?embed=true  → o Streamlit esconde a barra superior, o menu e o rodapé.
-    Para trocar de app, altere só a constante APP_URL no script abaixo.
-  -->
-  <iframe
-    id="app"
-    title="Renda por Município — São Paulo"
-    allow="clipboard-write; clipboard-read"
-    referrerpolicy="strict-origin-when-cross-origin"
-  ></iframe>
+<main class="wrap" id="app"><div class="loading"><div class="spin"></div>Carregando dados do IBGE…</div></main>
 
-  <script>
-    (function () {
-      var APP_URL = "https://renda-cidades-sp-ibge.streamlit.app/";
+<div class="wrap">
+  <footer>
+    Fontes: IBGE/SIDRA — <a href="https://sidra.ibge.gov.br/tabela/5938" target="_blank" rel="noopener">PIB dos Municípios (Tabela 5938)</a>,
+    <a href="https://sidra.ibge.gov.br/tabela/6579" target="_blank" rel="noopener">estimativas de população (Tabela 6579)</a> e
+    <a href="https://sidra.ibge.gov.br/tabela/4709" target="_blank" rel="noopener">Censo 2022 (Tabela 4709)</a>.
+    PIB per capita = PIB do município ÷ população. Renda familiar mensal estimada = PIB per capita ÷ 12 × 0,6 × 3 pessoas — é uma aproximação, não uma medida oficial de renda.
+    · <a href="https://github.com/RodrigoAiosa/renda_cidades_sp_ibge" target="_blank" rel="noopener">Código no GitHub</a>
+  </footer>
+</div>
 
-      var frame = document.getElementById("app");
-      var loading = document.getElementById("loading");
-      var fallback = document.getElementById("fallback");
+<script>
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => (s == null ? "" : String(s)).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+  const int = new Intl.NumberFormat("pt-BR");
+  const bi = (mil) => { const r = mil * 1000; return r >= 1e9 ? `R$ ${(r / 1e9).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} bi` : `R$ ${(r / 1e6).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mi`; };
+  const norm = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
-      // Mantém parâmetros da URL (ex.: ?utm_source=...) e força o modo embed.
-      var url = new URL(APP_URL);
-      new URLSearchParams(window.location.search).forEach(function (v, k) {
-        url.searchParams.set(k, v);
-      });
-      url.searchParams.set("embed", "true");
+  // Metodologia do app original, com o PIB per capita (anual) convertido para mensal.
+  const FATOR_RENDA = 0.6, PESSOAS = 3;
+  const CLASSES = [
+    { nome: "Baixa renda", ate: 3000, cor: "var(--c-baixa)", hex: "#c8402f", desc: "Abaixo de R$ 3.000 · necessidades básicas" },
+    { nome: "Classe média baixa", ate: 6000, cor: "var(--c-mediabaixa)", hex: "#e07b28", desc: "R$ 3.000 a R$ 6.000 · consumo moderado" },
+    { nome: "Classe média", ate: 13300, cor: "var(--c-media)", hex: "#d1a21c", desc: "R$ 6.000 a R$ 13.300 · padrão confortável" },
+    { nome: "Classe média alta", ate: 25000, cor: "var(--c-mediaalta)", hex: "#2f6db5", desc: "R$ 13.300 a R$ 25.000 · padrão elevado" },
+    { nome: "Alta renda", ate: Infinity, cor: "var(--c-alta)", hex: "#1b7f4a", desc: "Acima de R$ 25.000 · alto poder aquisitivo" },
+  ];
+  const classe = (r) => CLASSES.find((c) => r < c.ate);
 
-      fallback.href = APP_URL;
-      frame.src = url.toString();
+  // ------------------------------------------------------------------ API
+  const cache = new Map();
+  async function api(qs) {
+    if (cache.has(qs)) return cache.get(qs);
+    const r = await fetch(`/api/renda${qs ? `?${qs}` : ""}`);
+    if (r.status === 404) throw new Error("A consulta ao IBGE só funciona no site publicado na Vercel.");
+    const j = await r.json().catch(() => null);
+    if (!r.ok || !j || j.erro) throw new Error((j && (j.erro + (j.detalhe ? ` (${j.detalhe})` : ""))) || `HTTP ${r.status}`);
+    cache.set(qs, j);
+    return j;
+  }
 
-      // Se demorar, oferece abrir em nova aba (app dormindo ou rede lenta).
-      var slowTimer = setTimeout(function () {
-        loading.classList.add("slow");
-      }, 8000);
+  // ---------------------------------------------------------------- estado
+  let D = null, sel = null, comparar = [], ordem = { col: "renda", dir: -1 }, filtroTabela = "";
 
-      frame.addEventListener("load", function () {
-        clearTimeout(slowTimer);
-        loading.classList.add("hidden");
-        setTimeout(function () { loading.style.display = "none"; }, 350);
-      });
-    })();
-  </script>
+  function preparar(dados) {
+    const lista = dados.municipios.map(([codigo, municipio, pibMil, pop]) => {
+      const pc = pop ? (pibMil * 1000) / pop : null;
+      const renda = pc != null ? (pc / 12) * FATOR_RENDA * PESSOAS : null;
+      return { codigo, municipio, pibMil, pop, pc, renda, classe: renda != null ? classe(renda) : null };
+    }).filter((m) => m.renda != null);
+    lista.sort((a, b) => b.renda - a.renda).forEach((m, i) => (m.rank = i + 1));
+    return { ...dados, lista, porCodigo: Object.fromEntries(lista.map((m) => [m.codigo, m])) };
+  }
 
-  <noscript>
-    <p style="padding:24px;text-align:center">
-      Ative o JavaScript ou
-      <a href="https://renda-cidades-sp-ibge.streamlit.app/" target="_blank" rel="noopener">abra o painel diretamente</a>.
-    </p>
-  </noscript>
+  async function carregar(ano) {
+    $("app").innerHTML = `<div class="loading"><div class="spin"></div>Carregando dados do IBGE${ano ? ` para ${ano}` : ""}…</div>`;
+    $("busca").disabled = $("ano").disabled = true;
+    try {
+      D = preparar(await api(ano ? `ano=${ano}` : ""));
+    } catch (e) {
+      $("app").innerHTML = `<div class="error">❌ Não foi possível carregar os dados do IBGE. ${esc(e.message)}<br><button class="btn" style="margin-top:10px" id="tentar">Tentar de novo</button></div>`;
+      $("tentar").onclick = () => carregar(ano);
+      return;
+    }
+    if (!D.lista.length) { $("app").innerHTML = `<div class="error">O IBGE não retornou dados de população para calcular a renda deste ano.</div>`; return; }
+    $("listaMun").innerHTML = D.lista.slice().sort((a, b) => a.municipio.localeCompare(b.municipio, "pt-BR")).map((m) => `<option value="${esc(m.municipio)}">`).join("");
+    $("busca").disabled = $("ano").disabled = false;
+    if ($("ano").options.length <= 1 || ![...$("ano").options].some((o) => +o.value === D.ano)) {
+      $("ano").innerHTML = `<option value="${D.ano}">${D.ano}</option>`;
+      api("anos=1").then((r) => {
+        const anos = r.anos.filter((a) => a >= 2010).reverse();
+        $("ano").innerHTML = anos.map((a) => `<option value="${a}">${a}${a === anos[0] ? " (mais recente)" : ""}</option>`).join("");
+        $("ano").value = D.ano;
+      }).catch(() => {});
+    }
+    $("ano").value = D.ano;
+    $("status").textContent = `PIB ${D.ano} · população: ${D.populacao ? D.populacao.fonte : "indisponível"}`;
+    sel = (sel && D.porCodigo[sel.codigo]) || D.lista.find((m) => m.codigo === 3550308) || D.lista[0];
+    comparar = comparar.map((c) => D.porCodigo[c.codigo]).filter(Boolean);
+    if (!comparar.length) comparar = [sel];
+    render();
+  }
+
+  // ---------------------------------------------------------------- render
+  const layout = (extra) => {
+    const cs = getComputedStyle(document.documentElement), c = (v) => cs.getPropertyValue(v).trim();
+    return Object.assign({
+      paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)", separators: ",.",
+      font: { family: "Public Sans, sans-serif", color: c("--ink-2"), size: 12 },
+      margin: { l: 10, r: 20, t: 10, b: 40 },
+      xaxis: { gridcolor: c("--line"), zeroline: false }, yaxis: { gridcolor: c("--line"), zeroline: false, automargin: true },
+      hoverlabel: { font: { family: "Public Sans, sans-serif" } }, showlegend: false,
+    }, extra || {});
+  };
+  const cfg = { responsive: true, displayModeBar: false };
+
+  function render() {
+    const m = sel, n = D.lista.length;
+    const rendas = D.lista.map((x) => x.renda).sort((a, b) => a - b);
+    const media = rendas.reduce((s, v) => s + v, 0) / n, mediana = rendas[Math.floor(n / 2)];
+    const pos = Math.min(98, Math.max(2, (Math.min(m.renda, 30000) / 30000) * 100));
+    const contagem = CLASSES.map((c) => ({ ...c, qtd: D.lista.filter((x) => x.classe === c).length })).filter((c) => c.qtd);
+    $("busca").value = m.municipio;
+
+    $("app").innerHTML = `
+      <h2>🏙️ ${esc(m.municipio)}</h2>
+      <p class="sub">PIB de ${D.ano}${D.populacao ? ` · população: ${esc(D.populacao.fonte)}` : ""}</p>
+      <div class="grid4">
+        <div class="card metric"><div class="k">💰 Renda familiar mensal estimada</div><div class="v">${brl.format(m.renda)}</div><div class="s">PIB per capita: ${brl.format(m.pc)}/ano</div></div>
+        <div class="card metric"><div class="k">📊 Classificação</div><div class="v pill" style="font-size:clamp(18px,2vw,22px)"><i style="background:${m.classe.cor}"></i>${esc(m.classe.nome)}</div><div class="s">${esc(m.classe.desc.split(" · ")[0])}</div></div>
+        <div class="card metric"><div class="k">👥 População</div><div class="v">${m.pop ? int.format(m.pop) : "—"}</div><div class="s">PIB total: ${bi(m.pibMil)}</div></div>
+        <div class="card metric"><div class="k">🏆 Ranking estadual</div><div class="v">${m.rank}º <span style="font-size:15px;color:var(--ink-3);font-weight:500">de ${n}</span></div><div class="s">${m.rank <= n / 2 ? `entre os ${Math.max(1, Math.ceil((m.rank / n) * 100))}% mais ricos` : `acima de ${Math.floor(((n - m.rank) / n) * 100)}% das cidades`}</div></div>
+      </div>
+
+      <section class="block card">
+        <h3>📈 Indicador de renda</h3>
+        <div class="scale">
+          <div class="marker"><b style="left:${pos}%"></b></div>
+          <div class="track"><span></span><span></span><span></span><span></span><span></span></div>
+          <div class="ticks">${[3000, 6000, 13300, 25000].map((v) => `<span style="left:${(v / 30000) * 100}%">${brl.format(v)}</span>`).join("")}</div>
+        </div>
+        <div class="legend">${CLASSES.map((c) => `<span><i style="background:${c.cor}"></i>${esc(c.nome)}</span>`).join("")}</div>
+        <details><summary>📖 Entenda as faixas de renda</summary>
+          <div class="table-wrap" style="max-height:none;margin-top:8px"><table><thead><tr><th>Classificação</th><th>Renda familiar mensal</th></tr></thead>
+          <tbody>${CLASSES.slice().reverse().map((c) => `<tr><td><span class="pill"><i style="background:${c.cor}"></i>${esc(c.nome)}</span></td><td>${esc(c.desc)}</td></tr>`).join("")}</tbody></table></div>
+        </details>
+      </section>
+
+      <section class="block two">
+        <div class="card"><h3>📅 PIB per capita ao longo dos anos</h3><div id="gSerie" class="chart"><div class="loading" style="padding:120px 0"><div class="spin"></div>Buscando série histórica…</div></div></div>
+        <div class="card"><h3>🔄 Comparar municípios</h3>
+          <div class="row"><div class="field" style="flex:1"><label for="addComp">Adicionar cidade</label><input type="search" id="addComp" list="listaMun" placeholder="ex.: Santos"></div></div>
+          <div class="chips" id="chipsComp"></div>
+          <div id="gComp" class="chart" style="height:280px"></div>
+        </div>
+      </section>
+
+      <section class="block">
+        <h2>🏆 Ranking de renda por município</h2>
+        <p class="sub">Clique numa barra ou numa linha da tabela para analisar a cidade.</p>
+        <div class="two">
+          <div class="card"><h3>Top 20 maiores rendas</h3><div id="gTop" class="chart tall"></div></div>
+          <div class="card"><h3>As 20 menores rendas</h3><div id="gBottom" class="chart tall"></div></div>
+        </div>
+      </section>
+
+      <section class="block two">
+        <div class="card"><h3>📊 Distribuição no estado</h3><div id="gPizza" class="chart"></div></div>
+        <div class="card"><h3>📈 Estatísticas do estado</h3>
+          <div class="metric" style="margin-bottom:14px"><div class="k">Renda média estadual (média das cidades)</div><div class="v">${brl.format(media)}</div></div>
+          <div class="metric" style="margin-bottom:14px"><div class="k">Renda mediana estadual</div><div class="v">${brl.format(mediana)}</div></div>
+          <div class="metric" style="margin-bottom:14px"><div class="k">Município com maior renda</div><div class="v" style="font-size:22px">${esc(D.lista[0].municipio)}</div><div class="s">${brl.format(D.lista[0].renda)} por família/mês</div></div>
+          <div class="note">${contagem.map((c) => `<b>${c.qtd}</b> ${esc(c.nome.toLowerCase())}`).join(" · ")}</div>
+        </div>
+      </section>
+
+      <section class="block">
+        <h2>📋 Tabela completa</h2>
+        <div class="row" style="margin:10px 0 12px">
+          <div class="field" style="flex:1;min-width:200px"><label for="filtroTab">Filtrar</label><input type="search" id="filtroTab" placeholder="Nome da cidade" value="${esc(filtroTabela)}"></div>
+          <button class="btn" id="baixar">📥 Baixar dados completos (CSV)</button>
+        </div>
+        <div class="table-wrap" id="tabela"></div>
+      </section>`;
+
+    desenharTabela();
+    desenharRanking();
+    desenharPizza(contagem);
+    desenharComparacao();
+    desenharSerie(m);
+
+    $("filtroTab").addEventListener("input", (e) => { filtroTabela = e.target.value; desenharTabela(); });
+    $("baixar").onclick = baixarCsv;
+    $("addComp").addEventListener("change", (e) => {
+      const alvo = D.lista.find((x) => norm(x.municipio) === norm(e.target.value.trim()));
+      if (alvo && !comparar.includes(alvo)) { comparar.push(alvo); desenharComparacao(); }
+      e.target.value = "";
+    });
+  }
+
+  function escolher(m) {
+    if (!m) return;
+    sel = m;
+    if (!comparar.includes(m)) comparar = [m, ...comparar].slice(0, 8);
+    history.replaceState(null, "", `#${m.codigo}${D.ano ? `-${D.ano}` : ""}`);
+    render();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function barras(id, lista) {
+    const l = lista.slice().reverse();
+    Plotly.newPlot(id, [{
+      type: "bar", orientation: "h", y: l.map((x) => x.municipio), x: l.map((x) => x.renda), customdata: l.map((x) => x.codigo),
+      marker: { color: l.map((x) => (x === sel ? "#1c2321" : x.classe.hex)) },
+      text: l.map((x) => brl.format(x.renda)), textposition: "outside", cliponaxis: false,
+      hovertemplate: "<b>%{y}</b><br>%{x:$,.0f} por família/mês<extra></extra>",
+    }], layout({ margin: { l: 10, r: 70, t: 4, b: 30 }, xaxis: { tickprefix: "R$ ", tickformat: ",.0f", gridcolor: "rgba(0,0,0,0)" }, yaxis: { automargin: true }, bargap: .25 }), cfg);
+    $(id).on("plotly_click", (ev) => escolher(D.porCodigo[ev.points[0].customdata]));
+  }
+  function desenharRanking() { barras("gTop", D.lista.slice(0, 20)); barras("gBottom", D.lista.slice(-20).reverse()); }
+
+  function desenharPizza(contagem) {
+    Plotly.newPlot("gPizza", [{
+      type: "pie", hole: .55, labels: contagem.map((c) => c.nome), values: contagem.map((c) => c.qtd), marker: { colors: contagem.map((c) => c.hex) },
+      sort: false, direction: "clockwise", textinfo: "percent", hovertemplate: "<b>%{label}</b><br>%{value} municípios (%{percent})<extra></extra>",
+    }], layout({ showlegend: true, legend: { orientation: "h", y: -0.1 }, margin: { l: 10, r: 10, t: 10, b: 10 } }), cfg);
+  }
+
+  function desenharComparacao() {
+    $("chipsComp").innerHTML = comparar.map((c, i) => `<span class="chip">${esc(c.municipio)}<button aria-label="Remover ${esc(c.municipio)}" data-i="${i}">×</button></span>`).join("") || `<span class="sub" style="margin:0">Adicione cidades para comparar.</span>`;
+    $("chipsComp").querySelectorAll("button").forEach((b) => (b.onclick = () => { comparar.splice(+b.dataset.i, 1); desenharComparacao(); }));
+    const l = comparar.slice().sort((a, b) => b.renda - a.renda);
+    if (!l.length) { Plotly.purge("gComp"); $("gComp").innerHTML = ""; return; }
+    Plotly.newPlot("gComp", [{
+      type: "bar", x: l.map((x) => x.municipio), y: l.map((x) => x.renda), customdata: l.map((x) => x.codigo),
+      marker: { color: l.map((x) => x.classe.hex) }, text: l.map((x) => brl.format(x.renda)), textposition: "outside", cliponaxis: false,
+      hovertemplate: "<b>%{x}</b><br>%{y:$,.0f} por família/mês<extra></extra>",
+    }], layout({ margin: { l: 10, r: 10, t: 24, b: 60 }, yaxis: { tickprefix: "R$ ", tickformat: ",.0f", automargin: true } }), cfg);
+    $("gComp").on("plotly_click", (ev) => escolher(D.porCodigo[ev.points[0].customdata]));
+  }
+
+  async function desenharSerie(m) {
+    let s;
+    try { s = await api(`serie=${m.codigo}`); } catch (e) { if (sel === m) $("gSerie").innerHTML = `<div class="note">Série histórica indisponível agora (${esc(e.message)}).</div>`; return; }
+    if (sel !== m || !$("gSerie")) return;
+    const p = s.pontos.filter((x) => x.pib_per_capita);
+    if (!p.length) { $("gSerie").innerHTML = `<div class="note">Sem série histórica para este município.</div>`; return; }
+    $("gSerie").innerHTML = "";
+    Plotly.newPlot("gSerie", [{
+      x: p.map((x) => x.ano), y: p.map((x) => x.pib_per_capita), mode: "lines+markers",
+      line: { color: getComputedStyle(document.documentElement).getPropertyValue("--accent").trim(), width: 3 }, marker: { size: 6 },
+      customdata: p.map((x) => [brl.format((x.pib_per_capita / 12) * FATOR_RENDA * PESSOAS), x.populacao ? int.format(x.populacao) : "—"]),
+      hovertemplate: "<b>%{x}</b><br>PIB per capita: %{y:$,.0f}/ano<br>Renda familiar estimada: %{customdata[0]}/mês<br>População: %{customdata[1]}<extra></extra>",
+    }], layout({ margin: { l: 10, r: 16, t: 10, b: 36 }, xaxis: { dtick: 2, gridcolor: "rgba(0,0,0,0)" }, yaxis: { tickprefix: "R$ ", tickformat: ",.0f", automargin: true }, hovermode: "x unified" }), cfg);
+  }
+
+  const COLS = [
+    { k: "rank", t: "#", num: 1, v: (m) => m.rank },
+    { k: "municipio", t: "Município", v: (m) => m.municipio },
+    { k: "renda", t: "Renda familiar mensal", num: 1, v: (m) => brl.format(m.renda), s: (m) => m.renda },
+    { k: "classe", t: "Classificação", v: (m) => `<span class="pill" style="font-weight:500"><i style="background:${m.classe.cor}"></i>${esc(m.classe.nome)}</span>`, s: (m) => m.renda, html: 1 },
+    { k: "pc", t: "PIB per capita (ano)", num: 1, v: (m) => brl.format(m.pc), s: (m) => m.pc },
+    { k: "pop", t: "População", num: 1, v: (m) => (m.pop ? int.format(m.pop) : "—"), s: (m) => m.pop || 0 },
+    { k: "pibMil", t: "PIB total", num: 1, v: (m) => bi(m.pibMil), s: (m) => m.pibMil },
+  ];
+  function desenharTabela() {
+    const f = norm(filtroTabela.trim());
+    const c = COLS.find((x) => x.k === ordem.col);
+    const val = c.s || c.v;
+    const linhas = D.lista.filter((m) => !f || norm(m.municipio).includes(f)).sort((a, b) => {
+      const x = val(a), y = val(b);
+      return (typeof x === "string" ? x.localeCompare(y, "pt-BR") : x - y) * ordem.dir;
+    });
+    $("tabela").innerHTML = `<table><thead><tr>${COLS.map((x) => `<th class="${x.num ? "num" : ""}" data-k="${x.k}" ${x.k === ordem.col ? `aria-sort="${ordem.dir > 0 ? "ascending" : "descending"}"` : ""}>${esc(x.t)}</th>`).join("")}</tr></thead>
+      <tbody>${linhas.map((m) => `<tr data-c="${m.codigo}" class="${m === sel ? "sel" : ""}">${COLS.map((x) => `<td class="${x.num ? "num" : ""}">${x.html ? x.v(m) : esc(x.v(m))}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+    $("tabela").querySelectorAll("th").forEach((th) => (th.onclick = () => { ordem = { col: th.dataset.k, dir: ordem.col === th.dataset.k ? -ordem.dir : (th.dataset.k === "municipio" || th.dataset.k === "rank" ? 1 : -1) }; desenharTabela(); }));
+    $("tabela").querySelectorAll("tbody tr").forEach((tr) => (tr.onclick = () => escolher(D.porCodigo[tr.dataset.c])));
+  }
+
+  function baixarCsv() {
+    const q = (v) => { const s = String(v ?? ""); return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+    const cab = ["ranking", "codigo_ibge", "municipio", "pib_mil_reais", "populacao", "pib_per_capita_ano", "renda_familiar_mensal_estimada", "classificacao", "ano_pib"];
+    const linhas = D.lista.map((m) => [m.rank, m.codigo, m.municipio, m.pibMil, m.pop, Math.round(m.pc), Math.round(m.renda), m.classe.nome, D.ano].map(q).join(";"));
+    const url = URL.createObjectURL(new Blob(["﻿" + [cab.join(";"), ...linhas].join("\r\n")], { type: "text/csv;charset=utf-8" }));
+    const a = Object.assign(document.createElement("a"), { href: url, download: `renda_municipios_sp_${D.ano}.csv` });
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
+  // ---------------------------------------------------------------- eventos
+  $("busca").addEventListener("change", () => {
+    const v = norm($("busca").value.trim());
+    const m = D.lista.find((x) => norm(x.municipio) === v) || D.lista.find((x) => norm(x.municipio).startsWith(v));
+    if (m) escolher(m);
+  });
+  $("busca").addEventListener("keydown", (e) => { if (e.key === "Enter") $("busca").dispatchEvent(new Event("change")); });
+  $("ano").addEventListener("change", () => carregar(+$("ano").value));
+
+  // início: #3550308-2021 abre uma cidade/ano específicos
+  const [codHash, anoHash] = location.hash.slice(1).split("-").map(Number);
+  if (codHash) sel = { codigo: codHash };
+  carregar(anoHash || null);
+})();
+</script>
 </body>
 </html>

@@ -1,0 +1,8 @@
+# O app Streamlit (Python) não roda na Vercel; lá publicamos só o index.html
+# e a função api/renda.js, que busca os dados no IBGE.
+app.py
+utils.py
+esconder_selo.py
+src/
+requirements.txt
+.streamlit/
